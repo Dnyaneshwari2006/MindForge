@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { dashboardApi, scoreToHeatColor, tagsApi, matrixApi } from '../api';
+import { dashboardApi, scoreToHeatColor, tagsApi, matrixApi, IS_CLOUD } from '../api';
 
 function useSplineScript() {
   useEffect(() => {
@@ -71,7 +71,16 @@ export default function Dashboard() {
   return (
     <div style={{ width: '100%', height: '100vh', overflowY: 'auto', overflowX: 'hidden', scrollBehavior: 'smooth' }}>
 
-      {/* ── HERO ── */}
+      {/* ── DEMO MODE BANNER (cloud only) ── */}
+      {IS_CLOUD && (
+        <div style={{ background: 'rgba(245,158,11,0.12)', borderBottom: '1px solid rgba(245,158,11,0.25)', padding: '10px 48px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <span style={{ fontSize: '16px' }}>🖥️</span>
+          <span style={{ fontSize: '13px', color: '#f59e0b' }}>
+            <strong>Demo Mode —</strong> Live focus tracking, real-time score & session features require the desktop app running locally. Auth & Analytics are fully functional.
+          </span>
+        </div>
+      )}
+
       <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingLeft: '80px', minHeight: '100vh', width: '100%', position: 'relative', overflow: 'hidden', flexShrink: 0, background: '#000000' }}>
         <div style={{ flex: '0 0 auto', maxWidth: '560px', paddingRight: '40px', zIndex: 10 }}>
           <h1 style={{ fontSize: '72px', fontWeight: 800, color: '#ffffff', lineHeight: 1.1, letterSpacing: '-2px', margin: '0 0 24px 0' }}>

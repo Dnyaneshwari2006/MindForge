@@ -2,11 +2,21 @@
  * MindForge API layer
  * All HTTP calls go through /api (Vite proxies to Express :39871).
  * WebSocket connects directly to ws://localhost:39871.
+ *
+ * CLOUD MODE: When deployed to Vercel/Netlify there is no local Express
+ * backend. IS_CLOUD is true when running on a non-localhost domain.
+ * In cloud mode all Express API calls return null gracefully instead of
+ * crashing — Supabase-backed features (Auth, Analytics, Habits) still work.
  */
 
 const BASE = '/api'; // proxied by Vite to http://localhost:39871
-// WS URL is dynamic: uses the same host the page was served from
-// → works for both localhost (dev) and 192.168.x.x (mobile / LAN)
+
+// Detect cloud deployment: hostname is not localhost / 192.168.x / 10.x
+export const IS_CLOUD = typeof window !== 'undefined' &&
+  !['localhost', '127.0.0.1'].includes(window.location.hostname) &&
+  !/^(192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)/.test(window.location.hostname);
+
+// WS URL — only used locally (watcher + scorer run on the student's PC)
 const WS_PORT = 39871;
 function getWsUrl() {
   const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
@@ -14,7 +24,11 @@ function getWsUrl() {
 }
 
 // ─── Generic fetch helper ─────────────────────────────────
+// Returns null (instead of throwing) in cloud mode so components
+// can render a graceful "feature not available in demo" state.
 async function apiFetch(path, options = {}) {
+  if (IS_CLOUD) return null; // no local Express in cloud deployment
+
   const res = await fetch(`${BASE}${path}`, {
     headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
     ...options,
