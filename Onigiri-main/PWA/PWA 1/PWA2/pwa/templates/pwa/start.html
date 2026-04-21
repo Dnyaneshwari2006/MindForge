@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FocusTrack — Start Session</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+:root{
+  --bg:#0f1117;--surface:#1a1d27;--surface2:#252836;--border:#2a2d3a;
+  --accent:#6366f1;--accent2:#818cf8;--green:#22c55e;--amber:#f59e0b;
+  --red:#ef4444;--text:#e2e8f0;--muted:#64748b;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;}
+.logo{font-size:1.8rem;font-weight:900;color:var(--accent);margin-bottom:4px;letter-spacing:-.02em;}
+.tagline{color:var(--muted);font-size:.85rem;margin-bottom:36px;}
+
+/* ── Setup Card ── */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:36px;width:100%;max-width:480px;box-shadow:0 24px 80px rgba(0,0,0,.5);}
+.card h2{font-size:1.1rem;font-weight:700;margin-bottom:24px;color:var(--text);}
+.field{margin-bottom:18px;}
+.field label{display:block;font-size:.75rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;}
+.field input,.field select{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:11px 14px;color:var(--text);font-size:.9rem;outline:none;transition:border .2s;}
+.field input:focus,.field select:focus{border-color:var(--accent);}
+.field select option{background:var(--bg);}
+.btn-start{width:100%;background:var(--accent);color:#fff;border:none;border-radius:12px;padding:14px;font-size:1rem;font-weight:700;cursor:pointer;margin-top:8px;transition:opacity .2s,transform .1s;}
+.btn-start:hover{opacity:.9;}
+.btn-start:active{transform:scale(.98);}
+.btn-start:disabled{opacity:.4;cursor:not-allowed;}
+
+/* ── QR / Session Card ── */
+#session-panel{display:none;}
+.session-card{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:36px;width:100%;max-width:820px;box-shadow:0 24px 80px rgba(0,0,0,.5);}
+
+/* Status bar */
+.status-bar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:28px;padding-bottom:20px;border-bottom:1px solid var(--border);}
+.session-id-badge{font-size:1.4rem;font-weight:900;letter-spacing:.18em;color:var(--accent);}
+.device-pill{display:flex;align-items:center;gap:6px;background:var(--surface2);padding:5px 14px;border-radius:9999px;font-size:.78rem;}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--muted);}
+.dot.green{background:var(--green);box-shadow:0 0 7px var(--green);animation:pulse 1.8s infinite;}
+.dot.amber{background:var(--amber);animation:pulse 1.8s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* Two-column layout */
+.two-col{display:grid;grid-template-columns:240px 1fr;gap:28px;align-items:start;}
+@media(max-width:700px){.two-col{grid-template-columns:1fr;}}
+
+/* QR side */
+.qr-side{display:flex;flex-direction:column;align-items:center;gap:14px;}
+#qr-box{background:#fff;border-radius:14px;padding:14px;width:214px;height:214px;display:flex;align-items:center;justify-content:center;}
+.qr-label{font-size:.78rem;color:var(--muted);text-align:center;line-height:1.5;}
+.pwa-link{word-break:break-all;font-size:.65rem;color:var(--accent);text-align:center;}
+
+/* Info side */
+.info-side{}
+.topic-row{margin-bottom:18px;}
+.topic-name{font-size:1.1rem;font-weight:700;color:var(--text);}
+.topic-meta{font-size:.78rem;color:var(--muted);margin-top:3px;}
+.wait-msg{display:flex;align-items:center;gap:10px;background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.25);border-radius:10px;padding:14px;font-size:.82rem;color:var(--accent2);margin-bottom:16px;}
+.wait-msg .spinner{width:18px;height:18px;border:2px solid rgba(99,102,241,.3);border-top:2px solid var(--accent);border-radius:50%;animation:spin 1s linear infinite;flex-shrink:0;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.connected-msg{display:none;align-items:center;gap:10px;background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.25);border-radius:10px;padding:14px;font-size:.82rem;color:var(--green);margin-bottom:16px;}
+
+/* Live feed */
+.feed-label{font-size:.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:8px;}
+.feed{background:var(--bg);border:1px solid var(--border);border-radius:10px;height:220px;overflow-y:auto;padding:8px;}
+.feed-row{padding:6px 8px;border-radius:6px;font-size:.76rem;display:flex;gap:8px;align-items:center;border-bottom:1px solid var(--border);}
+.feed-row:last-child{border-bottom:none;}
+.tag{padding:2px 8px;border-radius:9999px;font-size:.65rem;font-weight:700;text-transform:uppercase;flex-shrink:0;}
+.tag-picked,.tag-backgrounded{background:rgba(245,158,11,.15);color:var(--amber);}
+.tag-down,.tag-foregrounded{background:rgba(34,197,94,.15);color:var(--green);}
+.tag-heartbeat{background:rgba(100,116,139,.15);color:var(--muted);}
+.tag-joined{background:rgba(99,102,241,.15);color:var(--accent2);}
+.tag-default{background:rgba(100,116,139,.1);color:var(--muted);}
+.feed-ts{color:var(--muted);font-size:.65rem;margin-left:auto;flex-shrink:0;}
+
+/* Alert banner */
+#alert-banner{display:none;background:linear-gradient(135deg,#dc2626,#b91c1c);border-radius:12px;padding:14px 18px;margin-bottom:16px;font-size:.88rem;font-weight:600;color:#fff;animation:flashin .4s ease;}
+@keyframes flashin{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+
+/* Score */
+.score-chip{display:inline-block;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:8px 18px;font-size:.8rem;color:var(--muted);margin-bottom:16px;}
+.score-chip span{font-size:1.4rem;font-weight:900;color:var(--green);margin-right:4px;}
+
+.btn-end{background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:10px;padding:8px 18px;font-size:.78rem;cursor:pointer;transition:.2s;}
+.btn-end:hover{border-color:var(--red);color:var(--red);}
+/* Reconnect warning — fixed overlay, impossible to clip */
+#reconnect-warn{
+  display:none;
+  position:fixed;
+  bottom:0; left:0; right:0;
+  z-index:99999;
+  background:linear-gradient(135deg,#92400e,#b45309);
+  color:#fff;
+  padding:20px 32px;
+  font-size:1rem;font-weight:600;
+  border-top:4px solid #fbbf24;
+  box-shadow:0 -8px 32px rgba(0,0,0,.5);
+  display:none;
+  align-items:center;
+  gap:16px;
+  flex-wrap:wrap;
+}
+#reconnect-warn.visible{ display:flex !important; }
+.countdown{font-size:1.3rem;font-weight:900;color:#fde68a;}
+#dismiss-reconnect{
+  margin-left:auto;background:rgba(255,255,255,.15);
+  border:1px solid rgba(255,255,255,.3);color:#fff;
+  padding:6px 14px;border-radius:8px;cursor:pointer;font-size:.8rem;
+}
+</style>
+</head>
+<body>
+
+<div class="logo">🎯 FocusTrack</div>
+<p class="tagline">Real-time focus monitoring – phone + desktop</p>
+
+<!-- ── Step 1: Setup Form ── -->
+<div class="card" id="setup-panel">
+  <h2>Start a Focus Session</h2>
+  <div class="field">
+    <label>Study Topic</label>
+    <input type="text" id="topic" placeholder="e.g. Advanced Mathematics" value="Calculus – Integration">
+  </div>
+  <div class="field">
+    <label>Duration (minutes)</label>
+    <input type="number" id="duration" value="60" min="5" max="300">
+  </div>
+  <div class="field">
+    <label>Sensitivity</label>
+    <select id="sensitivity">
+      <option value="strict">Strict (30s grace period)</option>
+      <option value="balanced" selected>Balanced (2 min grace period)</option>
+      <option value="relaxed">Relaxed (5 min grace period)</option>
+    </select>
+  </div>
+  <button class="btn-start" id="btn-create">Generate QR Code →</button>
+</div>
+
+<!-- ── Step 2: QR + Live Feed ── -->
+<div id="session-panel">
+<div class="session-card">
+
+  <!-- Status bar -->
+  <div class="status-bar">
+    <span class="session-id-badge" id="s-id">——</span>
+    <div class="device-pill">
+      <span class="dot green" id="d-desktop-dot"></span>
+      <span>Desktop Connected</span>
+    </div>
+    <div class="device-pill">
+      <span class="dot" id="d-mobile-dot"></span>
+      <span id="d-mobile-label">Waiting for phone…</span>
+    </div>
+    <button class="btn-end" id="btn-end" style="margin-left:auto">End Session</button>
+  </div>
+
+  <!-- Distraction alert banner -->
+  <div id="alert-banner">⚠️ Distraction detected — user switched to another app!</div>
+
+
+  <div class="two-col">
+    <!-- QR side -->
+    <div class="qr-side">
+      <div id="qr-box"></div>
+      <div class="qr-label">📱 Scan this QR code with<br>the student's phone camera</div>
+      <div class="pwa-link" id="pwa-link-text"></div>
+    </div>
+
+    <!-- Info side -->
+    <div class="info-side">
+      <div class="topic-row">
+        <div class="topic-name" id="s-topic"></div>
+        <div class="topic-meta" id="s-meta"></div>
+      </div>
+
+      <div class="wait-msg" id="wait-msg">
+        <div class="spinner"></div>
+        Waiting for phone to scan the QR code…
+      </div>
+      <div class="connected-msg" id="connected-msg">
+        ✅ Phone connected! Session is now live. Monitoring for distractions.
+      </div>
+
+      <div class="score-chip" id="score-chip"><span id="score-val">—</span> Focus Score</div>
+
+      <div class="feed-label">📱 Live Phone Signals</div>
+      <div class="feed" id="signal-feed">
+        <div class="feed-row" style="color:var(--muted);font-size:.75rem;justify-content:center;">Signals will appear here once phone connects…</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<script>
+let sessionId       = null;
+let ws              = null;
+let wsUrl           = null;
+
+// Disconnect / auto-close state
+let phoneWasConnected   = false;   // true once phone has ever connected
+let phoneIsConnected    = false;   // current live state
+let disconnectTimer     = null;    // 5-min auto-close timeout
+let countdownInterval   = null;    // 1s countdown ticker
+const AUTO_CLOSE_MS     = 5 * 60 * 1000;  // 5 minutes
+
+// ── Create session ──
+document.getElementById('btn-create').addEventListener('click', async () => {
+  const topic    = document.getElementById('topic').value.trim();
+  const duration = parseInt(document.getElementById('duration').value);
+  const sens     = document.getElementById('sensitivity').value;
+
+  if (!topic) { alert('Please enter a study topic.'); return; }
+
+  const btn = document.getElementById('btn-create');
+  btn.disabled = true; btn.textContent = 'Creating session…';
+
+  try {
+    const res = await fetch('/api/sessions/create/', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({topic, duration_minutes: duration, sensitivity: sens}),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to create session');
+    sessionId = data.session_id;
+    wsUrl     = data.ws_url;
+    startSession(data);
+  } catch(e) {
+    alert('Error: ' + e.message);
+    btn.disabled = false; btn.textContent = 'Generate QR Code →';
+  }
+});
+
+function startSession(data) {
+  document.getElementById('setup-panel').style.display = 'none';
+  document.getElementById('session-panel').style.display = 'block';
+  document.getElementById('s-id').textContent   = data.session_id;
+  document.getElementById('s-topic').textContent = document.getElementById('topic').value;
+  document.getElementById('s-meta').textContent  =
+    document.getElementById('duration').value + ' min · ' +
+    document.getElementById('sensitivity').value + ' sensitivity';
+
+  const pwaUrl = data.pwa_url;
+  document.getElementById('pwa-link-text').textContent = pwaUrl;
+  new QRCode(document.getElementById('qr-box'), {
+    text: pwaUrl, width: 186, height: 186,
+    colorDark: '#000000', colorLight: '#ffffff',
+    correctLevel: QRCode.CorrectLevel.M,
+  });
+
+  connectDesktopWS(data.ws_url);
+}
+
+// ── WebSocket ──
+function connectDesktopWS(url) {
+  ws = new WebSocket(url);
+  ws.addEventListener('open', () => {
+    ws.send(JSON.stringify({device:'desktop', event:'session_start', session_id:sessionId, timestamp:Date.now()}));
+  });
+  ws.addEventListener('message', (evt) => {
+    let msg; try { msg = JSON.parse(evt.data); } catch { return; }
+    handleServerMessage(msg);
+  });
+  ws.addEventListener('close', () => {
+    setTimeout(() => connectDesktopWS(url), 3000);
+  });
+}
+
+function handleServerMessage(msg) {
+  switch(msg.type) {
+    case 'mobile_connected_notification': onMobileConnected(); break;
+    case 'distraction_alert':             showAlert(msg.message); break;
+    case 'score_update':                  updateScore(msg.score); break;
+    case 'device_disconnected':
+      if (msg.device === 'mobile') onMobileDisconnected();
+      break;
+    case 'session_ended':
+      alert('🔴 ' + (msg.message || 'Session ended.'));
+      if (ws) ws.close();
+      location.reload();
+      break;
+  }
+}
+
+// ── Phone connected ──
+function onMobileConnected() {
+  if (phoneIsConnected) return;          // already connected, skip re-entry
+  phoneIsConnected  = true;
+  phoneWasConnected = true;
+
+  clearAutoCloseTimer();                  // cancel any pending auto-close
+
+  document.getElementById('d-mobile-dot').className = 'dot green';
+  document.getElementById('d-mobile-label').textContent = 'Phone Connected ✓';
+  document.getElementById('wait-msg').style.display      = 'none';
+  document.getElementById('connected-msg').style.display = 'flex';
+  document.getElementById('reconnect-warn').classList.remove('show');
+  addFeedRow('session_joined', '📱 Phone scanned QR — session is now LIVE');
+}
+
+// ── Phone disconnected ──
+function onMobileDisconnected() {
+  if (!phoneIsConnected && !phoneWasConnected) return;  // never connected, skip
+  if (!phoneIsConnected) return;                         // already flagged disconnected
+
+  phoneIsConnected = false;
+
+  document.getElementById('d-mobile-dot').className = 'dot amber';
+  document.getElementById('d-mobile-label').textContent = 'Phone Disconnected';
+  document.getElementById('connected-msg').style.display = 'none';
+
+  addFeedRow('default', '📵 Phone closed — ask student to re-scan the QR code');
+
+  // Show reconnect warning with countdown
+  showReconnectWarning();
+  startAutoCloseTimer();
+}
+
+// ── Reconnect warning banner with countdown ──
+const TOTAL_SECS = AUTO_CLOSE_MS / 1000;
+
+function showReconnectWarning() {
+  const el = document.getElementById('reconnect-warn');
+  if (!el) { console.error('[FocusTrack] reconnect-warn element not found!'); return; }
+  // Use classList + !important CSS — cannot be overridden by any rule
+  el.classList.add('visible');
+  let secsLeft = TOTAL_SECS;
+  updateCountdown(secsLeft);
+  if (countdownInterval) clearInterval(countdownInterval);
+  countdownInterval = setInterval(() => {
+    secsLeft--;
+    updateCountdown(secsLeft);
+    if (secsLeft <= 0) clearInterval(countdownInterval);
+  }, 1000);
+  console.log('[FocusTrack] Reconnect banner shown. Auto-close in 5 min.');
+}
+
+function updateCountdown(secs) {
+  const m = Math.floor(secs / 60);
+  const s = secs % 60;
+  document.getElementById('countdown-val').textContent =
+    m + ':' + String(s).padStart(2, '0');
+}
+
+function hideReconnectWarning() {
+  const el = document.getElementById('reconnect-warn');
+  if (el) el.classList.remove('visible');
+  if (countdownInterval) { clearInterval(countdownInterval); countdownInterval = null; }
+}
+
+// ── 5-minute auto-close ──
+function startAutoCloseTimer() {
+  clearAutoCloseTimer();
+  disconnectTimer = setTimeout(autoCloseSession, AUTO_CLOSE_MS);
+}
+
+function clearAutoCloseTimer() {
+  if (disconnectTimer)   { clearTimeout(disconnectTimer);  disconnectTimer   = null; }
+  if (countdownInterval) { clearInterval(countdownInterval); countdownInterval = null; }
+  hideReconnectWarning();
+}
+
+async function autoCloseSession() {
+  addFeedRow('default', '⏱️ Auto-closing session — phone did not reconnect within 5 minutes.');
+  try {
+    await fetch('/api/sessions/' + sessionId + '/end/', {method:'POST'});
+  } catch {}
+  if (ws) ws.close();
+  document.getElementById('reconnect-warn').innerHTML =
+    '🔴 Session auto-closed — phone did not reconnect within 5 minutes. Refresh to start a new session.';
+  document.getElementById('reconnect-warn').classList.add('show');
+  document.getElementById('btn-end').disabled = true;
+  document.getElementById('d-mobile-dot').className = 'dot';
+  document.getElementById('d-mobile-label').textContent = 'Session Ended';
+}
+
+// ── Alert / score ──
+function showAlert(message) {
+  const banner = document.getElementById('alert-banner');
+  banner.textContent = '⚠️ ' + (message || 'Distraction detected — user is on another app!');
+  banner.style.display = 'block';
+  setTimeout(() => banner.style.display = 'none', 8000);
+}
+
+function updateScore(score) {
+  const el = document.getElementById('score-val');
+  el.textContent = Math.round(score);
+  el.style.color = score >= 70 ? 'var(--green)' : score >= 45 ? 'var(--amber)' : 'var(--red)';
+}
+
+// ── Signal tag map ──
+const TAG_CLASS = {
+  phone_picked_up:'tag-picked', pwa_backgrounded:'tag-backgrounded',
+  pwa_foregrounded:'tag-foregrounded', phone_put_down:'tag-down',
+  heartbeat:'tag-heartbeat', session_joined:'tag-joined', pwa_resumed:'tag-backgrounded',
+};
+
+// ── Poll live-state every 2 s ──
+let seenSignals = new Set();
+let lastKnownMobileConnected = null;  // track previous poll state
+
+async function pollSignals() {
+  if (!sessionId) return;
+  try {
+    const res = await fetch('/api/sessions/' + sessionId + '/live-state/');
+    if (!res.ok) return;
+    const d = await res.json();
+
+    // Detect connection state changes from the poll
+    if (d.mobile_connected && !phoneIsConnected)  onMobileConnected();
+    if (!d.mobile_connected && phoneIsConnected)  onMobileDisconnected();
+
+    if (d.focus_score !== null && d.focus_score !== undefined) updateScore(d.focus_score);
+
+    (d.mobile_signals || []).reverse().forEach(sig => {
+      const key = sig.signal_type + sig.timestamp;
+      if (seenSignals.has(key)) return;
+      seenSignals.add(key);
+
+      let label = sig.signal_type, extra = '';
+      if (sig.signal_type === 'phone_picked_up')  { label = '📱 Phone Picked Up';         extra = sig.magnitude ? ` (${sig.magnitude.toFixed(1)} m/s²)` : ''; }
+      if (sig.signal_type === 'phone_put_down')   { label = '📵 Phone Put Down'; }
+      if (sig.signal_type === 'pwa_backgrounded') { label = '🔴 Switched to Another App'; extra = sig.duration_ms ? ` — away ${(sig.duration_ms/1000).toFixed(0)}s` : ''; }
+      if (sig.signal_type === 'pwa_foregrounded') { label = '🟢 Returned to App';         extra = sig.duration_ms ? ` — was away ${(sig.duration_ms/1000).toFixed(0)}s` : ''; }
+      if (sig.signal_type === 'heartbeat')        { label = '💓 Heartbeat (active)'; }
+      if (sig.signal_type === 'screen_off')       { label = '🌙 Screen Locked (focused)'; }
+      if (sig.signal_type === 'screen_on')        { label = '☀️ Screen Active'; }
+      if (sig.signal_type === 'pwa_resumed')      { label = '↩️ Resumed after background'; extra = sig.duration_ms ? ` — ${(sig.duration_ms/1000).toFixed(0)}s away` : ''; }
+      if (sig.signal_type === 'session_joined')   { label = '✅ Phone Connected to Session'; }
+
+      addFeedRow(sig.signal_type, label + extra, new Date(sig.timestamp).toLocaleTimeString());
+
+      if (sig.signal_type === 'pwa_backgrounded') {
+        showAlert('🔴 Distraction! Student switched to another app on their phone.');
+      }
+      if (sig.signal_type === 'pwa_foregrounded') {
+        showAlert('🟢 Student returned to the focus page on their phone.');
+      }
+    });
+  } catch(e) { console.error('[FocusTrack poll error]', e); }
+}
+
+function addFeedRow(type, text, ts) {
+  const feed = document.getElementById('signal-feed');
+  const placeholder = feed.querySelector('[style*="justify-content:center"]');
+  if (placeholder) placeholder.remove();
+  const cls  = TAG_CLASS[type] || 'tag-default';
+  const time = ts || new Date().toLocaleTimeString();
+  const row  = document.createElement('div');
+  row.className = 'feed-row';
+  row.innerHTML = `<span class="tag ${cls}">${type}</span><span>${text}</span><span class="feed-ts">${time}</span>`;
+  feed.insertBefore(row, feed.firstChild);
+  while (feed.children.length > 40) feed.removeChild(feed.lastChild);
+}
+
+setInterval(pollSignals, 2000);   // Poll every 2s — fast enough for disconnect detection
+
+// ── End session ──
+document.getElementById('btn-end').addEventListener('click', async () => {
+  if (!sessionId) return;
+  if (!confirm('End this focus session?')) return;
+  clearAutoCloseTimer();
+  try { await fetch('/api/sessions/' + sessionId + '/end/', {method:'POST'}); } catch {}
+  if (ws) ws.close();
+  alert('✅ Session ended. Refresh to start a new one.');
+  location.reload();
+});
+</script>
+
+<!-- Reconnect warning — fixed to bottom of page, never clipped -->
+<div id="reconnect-warn">
+  <span>📵 <strong>Phone Disconnected!</strong> Ask the student to re-scan the QR code — session auto-closes in</span>
+  <span class="countdown" id="countdown-val">5:00</span>
+  <button id="dismiss-reconnect">Dismiss</button>
+</div>
+
+<script>
+document.getElementById('dismiss-reconnect').addEventListener('click', () => {
+  document.getElementById('reconnect-warn').classList.remove('visible');
+});
+</script>
+</body>
+</html>

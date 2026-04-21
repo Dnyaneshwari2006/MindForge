@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#6366f1">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="FocusTrack">
+    <title>FocusTrack</title>
+    <link rel="manifest" href="/manifest.json">
+    <style>
+        :root{
+            --bg:#0f1117;--surface:#1a1d27;--border:#2a2d3a;
+            --accent:#6366f1;--green:#22c55e;--amber:#f59e0b;
+            --red:#ef4444;--text:#e2e8f0;--muted:#64748b;
+        }
+        *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+        html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter',system-ui,'Segoe UI',sans-serif;}
+        body{display:flex;flex-direction:column;min-height:100dvh;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);}
+
+        /* === Screens === */
+        .screen{display:none;flex:1;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px;text-align:center;}
+        .screen.active{display:flex;}
+
+        /* === Error screen === */
+        #screen-error .icon{font-size:3rem;margin-bottom:16px;}
+        #screen-error h1{font-size:1.3rem;font-weight:700;color:var(--red);margin-bottom:8px;}
+        #screen-error p{color:var(--muted);font-size:.9rem;}
+
+        /* === Connecting screen === */
+        #screen-connecting .session-code{font-size:2.5rem;font-weight:900;letter-spacing:.2em;color:var(--accent);margin-bottom:8px;}
+        #screen-connecting p{color:var(--muted);margin-bottom:24px;}
+        .spinner{width:48px;height:48px;border:3px solid var(--border);border-top:3px solid var(--accent);border-radius:50%;animation:spin 1s linear infinite;margin:0 auto;}
+        @keyframes spin{to{transform:rotate(360deg)}}
+
+        /* === iOS Permission screen === */
+        #screen-permission h1{font-size:1.3rem;font-weight:700;margin-bottom:12px;}
+        #screen-permission p{color:var(--muted);font-size:.87rem;max-width:300px;margin-bottom:24px;}
+        .btn{background:var(--accent);color:#fff;border:none;padding:14px 28px;border-radius:12px;font-size:1rem;font-weight:600;cursor:pointer;width:100%;max-width:300px;transition:opacity .2s;}
+        .btn:active{opacity:.7;}
+        .btn-danger{background:var(--red);}
+        .btn-outline{background:transparent;border:1px solid var(--border);color:var(--muted);}
+
+        /* === Active session screen === */
+        #screen-active{justify-content:flex-start;padding-top:0;}
+        .top-bar{width:100%;background:var(--surface);border-bottom:1px solid var(--border);padding:14px 20px;display:flex;align-items:center;justify-content:space-between;}
+        .top-bar .code{font-size:1rem;font-weight:800;letter-spacing:.15em;color:var(--accent);}
+        .top-bar .conn-badge{display:flex;align-items:center;gap:5px;font-size:.75rem;color:var(--muted);}
+        .conn-dot{width:8px;height:8px;border-radius:50%;background:var(--muted);transition:background .3s;}
+        .conn-dot.connected{background:var(--green);box-shadow:0 0 6px var(--green);animation:pulse 2s infinite;}
+        .conn-dot.reconnecting{background:var(--amber);animation:spin 1s linear infinite;border-radius:0;width:8px;height:8px;border:2px solid var(--amber);}
+        @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+
+        .active-content{flex:1;padding:20px;display:flex;flex-direction:column;gap:16px;width:100%;max-width:600px;margin:0 auto;}
+
+        .topic-label{font-size:1rem;font-weight:600;color:var(--text);text-align:center;}
+        .topic-sub{font-size:.8rem;color:var(--muted);text-align:center;}
+
+        .score-display{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px;text-align:center;}
+        .score-num{font-size:3.5rem;font-weight:900;color:var(--green);line-height:1;}
+        .score-label{font-size:.75rem;color:var(--muted);margin-top:4px;text-transform:uppercase;letter-spacing:.08em;}
+
+        .indicators{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+        .indicator{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;text-align:center;}
+        .indicator .ind-icon{font-size:1.4rem;margin-bottom:6px;}
+        .indicator .ind-label{font-size:.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px;}
+        .indicator .ind-value{font-size:.85rem;font-weight:600;}
+        .ind-value.good{color:var(--green);}
+        .ind-value.warn{color:var(--amber);}
+        .ind-value.bad{color:var(--red);}
+
+        /* === Distraction banner === */
+        #distraction-banner{
+            display:none;background:var(--red);color:#fff;
+            padding:14px 20px;text-align:center;font-size:.88rem;font-weight:600;
+            position:fixed;top:0;left:0;right:0;z-index:100;
+            animation:bannerin .3s ease;
+        }
+        @keyframes bannerin{from{transform:translateY(-100%)}to{transform:translateY(0)}}
+        #distraction-banner.show{display:block;}
+        #dismiss-banner{
+            display:block;font-size:.75rem;font-weight:400;margin-top:4px;opacity:.8;cursor:pointer;
+            text-decoration:underline;
+        }
+
+        /* === Reconnect Warning Banner === */
+        #reconnect-warn{
+            display:none;position:fixed;bottom:0;left:0;right:0;z-index:99999;
+            background:linear-gradient(135deg,#92400e,#b45309);color:#fff;
+            padding:20px;font-size:1rem;font-weight:600;border-top:4px solid #fbbf24;
+            box-shadow:0 -8px 32px rgba(0,0,0,.5);
+            align-items:center;gap:12px;flex-wrap:wrap;
+        }
+        #reconnect-warn.visible{display:flex !important;animation:bannerup .3s ease;}
+        @keyframes bannerup{from{transform:translateY(100%)}to{transform:translateY(0)}}
+        .countdown{font-size:1.3rem;font-weight:900;color:#fde68a;}
+
+        /* === End session === */
+        #screen-ended h1{font-size:1.5rem;font-weight:700;color:var(--green);margin-bottom:8px;}
+        #screen-ended p{color:var(--muted);font-size:.9rem;margin-bottom:16px;}
+        .stat-row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);font-size:.88rem;width:100%;max-width:320px;}
+        .stat-row:last-child{border:none;}
+        .stat-val{font-weight:700;color:var(--accent);}
+    </style>
+</head>
+<body>
+
+<!-- Distraction banner (overlay, shown over any screen) -->
+<div id="distraction-banner">
+    ⚠️ Distraction detected — return to your study!
+    <span id="dismiss-banner">Dismiss</span>
+</div>
+
+<!-- Reconnect Warning Banner -->
+<div id="reconnect-warn">
+    <span>📵 <strong>Connection Lost!</strong> Move closer to Wi-Fi. Session closes in</span>
+    <span class="countdown" id="reconnect-countdown">5:00</span>
+</div>
+
+<!-- Screen: Error -->
+<div id="screen-error" class="screen">
+    <div class="icon">❌</div>
+    <h1>Invalid session link</h1>
+    <p>Please scan the QR code again from your desktop.</p>
+</div>
+
+<!-- Screen: Connecting -->
+<div id="screen-connecting" class="screen">
+    <div class="session-code" id="connecting-code">······</div>
+    <p>Connecting to your focus session…</p>
+    <div class="spinner"></div>
+</div>
+
+<!-- Screen: iOS Motion Permission -->
+<div id="screen-permission" class="screen">
+    <h1>📱 Enable Motion Sensor</h1>
+    <p>FocusTrack needs access to your phone's motion sensor to detect when you pick it up.</p>
+    <button class="btn" id="btn-permission">Allow Motion Access</button>
+</div>
+
+<!-- Screen: Active session -->
+<div id="screen-active" class="screen">
+    <div class="top-bar">
+        <span class="code" id="active-code">——</span>
+        <span class="conn-badge">
+            <span class="conn-dot" id="conn-dot"></span>
+            <span id="conn-label">Connecting</span>
+        </span>
+    </div>
+    <div class="active-content">
+        <div>
+            <div class="topic-label" id="active-topic">Loading…</div>
+            <div class="topic-sub" id="active-duration"></div>
+        </div>
+
+        <div class="score-display">
+            <div class="score-num" id="score-num">—</div>
+            <div class="score-label">Focus Score</div>
+        </div>
+
+        <div class="indicators">
+            <div class="indicator">
+                <div class="ind-icon">📱</div>
+                <div class="ind-label">Phone</div>
+                <div class="ind-value good" id="ind-phone">On Desk</div>
+            </div>
+            <div class="indicator">
+                <div class="ind-icon">💡</div>
+                <div class="ind-label">Screen</div>
+                <div class="ind-value good" id="ind-screen">Active</div>
+            </div>
+            <div class="indicator">
+                <div class="ind-icon">👁️</div>
+                <div class="ind-label">PWA</div>
+                <div class="ind-value good" id="ind-pwa">Foreground</div>
+            </div>
+            <div class="indicator">
+                <div class="ind-icon">🔗</div>
+                <div class="ind-label">Connection</div>
+                <div class="ind-value good" id="ind-conn">Connected</div>
+            </div>
+        </div>
+
+        <button class="btn btn-danger" id="btn-end-session">End Session</button>
+    </div>
+</div>
+
+<!-- Screen: Session ended -->
+<div id="screen-ended" class="screen">
+    <h1>Session Complete ✓</h1>
+    <p>Great work! Here's your summary:</p>
+    <div class="stat-row"><span>Focus Score</span><span class="stat-val" id="end-score">—</span></div>
+    <div class="stat-row"><span>Session Code</span><span class="stat-val" id="end-code">—</span></div>
+    <br>
+    <button class="btn btn-outline" onclick="window.close()">Close</button>
+</div>
+
+<script>
+// ============================================================
+// Config & State
+// ============================================================
+const params   = new URLSearchParams(location.search);
+const SESSION  = params.get('session');
+const WS_BASE  = (location.protocol === 'https:' ? 'wss' : 'ws') + '://' + location.host + '/ws/session/';
+const REST_BASE = location.origin + '/api/sessions/';
+
+let ws           = null;
+let wsRetryDelay = 2000;
+const retryDelays= [2000, 5000, 10000, 30000];
+let retryIndex   = 0;
+
+let phoneOnDesk  = true;
+let backgroundedAt = null;
+let wakeLock     = null;
+let heartbeatTimer = null;
+let motionConsecutiveStill = 0;
+let pending      = [];        // queued signals when WS is down
+const MAX_QUEUE  = 50;
+
+let reconnectTimer = null;
+const AUTO_CLOSE_MS = 5 * 60 * 1000;
+
+
+// ============================================================
+// Screen helper
+// ============================================================
+function showScreen(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById('screen-' + id).classList.add('active');
+}
+
+// ============================================================
+// Entry point
+// ============================================================
+if (!SESSION) {
+    showScreen('error');
+} else {
+    document.getElementById('connecting-code').textContent = SESSION;
+    document.getElementById('active-code').textContent    = SESSION;
+    document.getElementById('end-code').textContent       = SESSION;
+    showScreen('connecting');
+    connectWebSocket();
+}
+
+// ============================================================
+// WebSocket connection & reconnection
+// ============================================================
+function connectWebSocket() {
+    try {
+        ws = new WebSocket(WS_BASE + SESSION + '/');
+    } catch(e) {
+        scheduleReconnect();
+        return;
+    }
+
+    ws.addEventListener('open', onWsOpen);
+    ws.addEventListener('message', onWsMessage);
+    ws.addEventListener('close', onWsClose);
+    ws.addEventListener('error', () => {/* close fires next */});
+}
+
+function onWsOpen() {
+    retryIndex = 0;
+    wsRetryDelay = 2000;
+    updateConnUI(true);
+    sendToServer({event: 'session_joined'}, true);
+    // Flush queued signals
+    while (pending.length) sendToServer(pending.shift(), true);
+}
+
+function onWsClose() {
+    updateConnUI(false);
+    scheduleReconnect();
+}
+
+function scheduleReconnect() {
+    const delay = retryDelays[Math.min(retryIndex, retryDelays.length - 1)];
+    retryIndex++;
+    setTimeout(connectWebSocket, delay);
+}
+
+function sendToServer(payload, force = false) {
+    const msg = Object.assign({
+        device: 'mobile',
+        session_id: SESSION,
+        timestamp: Date.now(),
+    }, payload);
+
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify(msg));
+    } else if (!force) {
+        // REST fallback
+        fetch(REST_BASE + SESSION + '/mobile-signal/', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify(msg),
+        }).catch(() => {
+            // Queue if REST also fails
+            if (pending.length >= MAX_QUEUE) pending.shift();
+            pending.push(payload);
+            storePendingLocally();
+        });
+    } else {
+        if (pending.length >= MAX_QUEUE) pending.shift();
+        pending.push(payload);
+    }
+}
+
+// Persist pending queue to localStorage for crash recovery
+function storePendingLocally() {
+    try { localStorage.setItem('ft_pending', JSON.stringify(pending)); } catch {}
+}
+
+// ============================================================
+// WebSocket incoming messages
+// ============================================================
+function onWsMessage(evt) {
+    let data;
+    try { data = JSON.parse(evt.data); } catch { return; }
+
+    switch (data.type) {
+        case 'session_joined_ack':
+            onSessionJoined(data);
+            break;
+        case 'distraction_alert':
+            showDistractionBanner(data.message);
+            break;
+        case 'score_update':
+            updateScore(data.score);
+            break;
+        case 'session_ended':
+            if (ws) ws.close();
+            document.getElementById('end-score').textContent = document.getElementById('score-num').textContent;
+            showScreen('ended');
+            break;
+        case 'device_disconnected':
+            // Desktop logic handles desktop disconnects
+            break;
+    }
+}
+
+function onSessionJoined(data) {
+    document.getElementById('active-topic').textContent   = data.topic || 'Focus Session';
+    document.getElementById('active-duration').textContent= data.duration_minutes
+        ? data.duration_minutes + ' minute session' : '';
+
+    showScreen('active');
+    startHeartbeat();
+    initVisibilityAPI();
+    initWakeLock();
+    checkIOSResume();
+
+    // Motion: iOS needs user gesture
+    if (typeof DeviceMotionEvent !== 'undefined' &&
+        typeof DeviceMotionEvent.requestPermission === 'function') {
+        showScreen('permission');
+        document.getElementById('btn-permission').addEventListener('click', requestMotionPermission);
+    } else {
+        initMotion();
+        showScreen('active');
+    }
+}
+
+// ============================================================
+// Score display
+// ============================================================
+function updateScore(score) {
+    const el = document.getElementById('score-num');
+    el.textContent = Math.round(score);
+    el.style.color = score >= 70
+        ? 'var(--green)' : score >= 45
+        ? 'var(--amber)' : 'var(--red)';
+}
+
+// ============================================================
+// Distraction banner
+// ============================================================
+function showDistractionBanner(msg) {
+    const banner = document.getElementById('distraction-banner');
+    banner.querySelector('#dismiss-banner').onclick = () => banner.classList.remove('show');
+    banner.classList.add('show');
+    setTimeout(() => banner.classList.remove('show'), 15000);
+}
+document.getElementById('dismiss-banner').addEventListener('click', () => {
+    document.getElementById('distraction-banner').classList.remove('show');
+});
+
+// ============================================================
+// Page Visibility API
+// ============================================================
+function initVisibilityAPI() {
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+            backgroundedAt = Date.now();
+            localStorage.setItem('ft_backgrounded_at', backgroundedAt);
+            sendToServer({event: 'pwa_backgrounded'});
+            document.getElementById('ind-pwa').textContent = 'Background';
+            document.getElementById('ind-pwa').className   = 'ind-value warn';
+            stopHeartbeat();
+        } else {
+            const duration_ms = backgroundedAt ? Date.now() - backgroundedAt : 0;
+            backgroundedAt = null;
+            sendToServer({event: 'pwa_foregrounded', duration_ms});
+            document.getElementById('ind-pwa').textContent = 'Foreground';
+            document.getElementById('ind-pwa').className   = 'ind-value good';
+            startHeartbeat();
+            reacquireWakeLock();
+        }
+    });
+}
+
+// ============================================================
+// iOS resume detection
+// ============================================================
+function checkIOSResume() {
+    const lastHb    = parseInt(localStorage.getItem('ft_last_heartbeat') || '0');
+    const bgAt      = parseInt(localStorage.getItem('ft_backgrounded_at') || '0');
+    const now       = Date.now();
+    const ref        = bgAt || lastHb;
+    if (ref && (now - ref) > 35000) {
+        sendToServer({event: 'pwa_resumed', away_duration_ms: now - ref});
+    }
+    localStorage.removeItem('ft_backgrounded_at');
+}
+
+// ============================================================
+// Heartbeat
+// ============================================================
+function startHeartbeat() {
+    stopHeartbeat();
+    heartbeatTimer = setInterval(() => {
+        const ts = Date.now();
+        localStorage.setItem('ft_last_heartbeat', ts);
+        sendToServer({
+            event: 'heartbeat',
+            phone_on_desk: phoneOnDesk,
+            is_visible: !document.hidden,
+        });
+    }, 30000);
+}
+
+function stopHeartbeat() {
+    if (heartbeatTimer) { clearInterval(heartbeatTimer); heartbeatTimer = null; }
+}
+
+// ============================================================
+// DeviceMotion API
+// ============================================================
+async function requestMotionPermission() {
+    try {
+        const result = await DeviceMotionEvent.requestPermission();
+        if (result === 'granted') {
+            initMotion();
+            showScreen('active');
+        }
+    } catch(e) {
+        alert('Motion permission denied. Some features will be limited.');
+        showScreen('active');
+    }
+}
+
+function initMotion() {
+    let stillCount = 0;
+    window.addEventListener('devicemotion', (evt) => {
+        const ag = evt.accelerationIncludingGravity;
+        if (!ag) return;
+        const mag = Math.sqrt((ag.x||0)**2 + (ag.y||0)**2 + (ag.z||0)**2);
+
+        if (mag > 13 && phoneOnDesk) {
+            phoneOnDesk = false;
+            stillCount  = 0;
+            sendToServer({event: 'phone_picked_up', magnitude: parseFloat(mag.toFixed(2))});
+            document.getElementById('ind-phone').textContent  = 'Picked Up';
+            document.getElementById('ind-phone').className    = 'ind-value bad';
+        } else if (mag < 10.5 && !phoneOnDesk) {
+            stillCount++;
+            if (stillCount >= 3) {
+                phoneOnDesk = true;
+                stillCount  = 0;
+                sendToServer({event: 'phone_put_down'});
+                document.getElementById('ind-phone').textContent = 'On Desk';
+                document.getElementById('ind-phone').className   = 'ind-value good';
+            }
+        } else {
+            stillCount = 0;
+        }
+    });
+}
+
+// ============================================================
+// Wake Lock API
+// ============================================================
+async function initWakeLock() {
+    if (!('wakeLock' in navigator)) return;
+    try {
+        wakeLock = await navigator.wakeLock.request('screen');
+        sendToServer({event: 'screen_on'});
+        document.getElementById('ind-screen').textContent = 'Active';
+        document.getElementById('ind-screen').className   = 'ind-value good';
+
+        wakeLock.addEventListener('release', () => {
+            sendToServer({event: 'screen_off'});
+            document.getElementById('ind-screen').textContent = 'Locked';
+            document.getElementById('ind-screen').className   = 'ind-value warn';
+        });
+    } catch(e) { /* Not supported or denied */ }
+}
+
+async function reacquireWakeLock() {
+    if (!wakeLock || wakeLock.released) await initWakeLock();
+}
+
+// ============================================================
+// Connection UI helper
+// ============================================================
+function updateConnUI(connected) {
+    const dot   = document.getElementById('conn-dot');
+    const label = document.getElementById('conn-label');
+    const ind   = document.getElementById('ind-conn');
+
+    if (connected) {
+        dot.className = 'conn-dot connected';
+        label.textContent = 'Connected';
+        ind.textContent = 'Connected';
+        ind.className   = 'ind-value good';
+        hideReconnectWarningPWA();
+    } else {
+        dot.className = 'conn-dot reconnecting';
+        label.textContent = 'Reconnecting…';
+        ind.textContent = 'Reconnecting';
+        ind.className   = 'ind-value warn';
+        showReconnectWarningPWA();
+    }
+}
+
+// ============================================================
+// 5-Min Reconnect Countdown
+// ============================================================
+function showReconnectWarningPWA() {
+    const el = document.getElementById('reconnect-warn');
+    if (!el || el.classList.contains('visible')) return;
+    el.classList.add('visible');
+
+    let secsLeft = AUTO_CLOSE_MS / 1000;
+    updatePWACountdown(secsLeft);
+
+    if (reconnectTimer) clearInterval(reconnectTimer);
+    reconnectTimer = setInterval(() => {
+        secsLeft--;
+        updatePWACountdown(secsLeft);
+        if (secsLeft <= 0) {
+            clearInterval(reconnectTimer);
+            // End session locally
+            document.getElementById('end-score').textContent = document.getElementById('score-num').textContent || '—';
+            showScreen('ended');
+        }
+    }, 1000);
+}
+
+function hideReconnectWarningPWA() {
+    const el = document.getElementById('reconnect-warn');
+    if (el) el.classList.remove('visible');
+    if (reconnectTimer) { clearInterval(reconnectTimer); reconnectTimer = null; }
+}
+
+function updatePWACountdown(secs) {
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    document.getElementById('reconnect-countdown').textContent = m + ':' + String(s).padStart(2, '0');
+}
+
+// ============================================================
+// End session
+// ============================================================
+document.getElementById('btn-end-session').addEventListener('click', async () => {
+    if (!confirm('Are you sure you want to end this focus session for everyone?')) return;
+
+    sendToServer({event: 'session_left'});
+    stopHeartbeat();
+
+    const score = document.getElementById('score-num').textContent;
+    document.getElementById('end-score').textContent = score;
+
+    try {
+        await fetch(REST_BASE + SESSION + '/end/', {method: 'POST'});
+    } catch {}
+
+    if (ws) ws.close();
+    showScreen('ended');
+});
+
+// ============================================================
+// Register service worker
+// ============================================================
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+}
+</script>
+</body>
+</html>

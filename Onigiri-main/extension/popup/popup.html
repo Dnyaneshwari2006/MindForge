@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=360">
+  <title>MindForge</title>
+  <link rel="stylesheet" href="popup.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+  <!-- Disconnected State -->
+  <div id="disconnected-banner" class="disconnected-banner" style="display: none;">
+    <span class="disconnected-icon">⚠️</span>
+    <span>MindForge desktop app not detected</span>
+  </div>
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-logo">
+      <span class="logo-icon">⚡</span>
+      <span class="logo-text">MindForge</span>
+    </div>
+    <div class="header-score" id="header-score" style="display: none;">
+      <span class="score-value" id="header-score-value">—</span>
+    </div>
+  </div>
+
+  <!-- Tab Navigation -->
+  <div class="tabs">
+    <button class="tab active" data-tab="status" id="tab-status">Status</button>
+    <button class="tab" data-tab="insights" id="tab-insights">Insights</button>
+    <button class="tab" data-tab="summary" id="tab-summary">Summary</button>
+    <button class="tab" data-tab="settings" id="tab-settings">Settings</button>
+  </div>
+
+  <!-- Tab Content -->
+  <div class="tab-content">
+
+    <!-- STATUS TAB -->
+    <div class="tab-panel active" id="panel-status">
+      <!-- Session Info -->
+      <div class="section">
+        <div class="session-status" id="session-status">
+          <div class="session-badge inactive" id="session-badge">No active session</div>
+          <div class="session-goal" id="session-goal" style="display: none;">
+            <div class="label">Session Goal</div>
+            <div class="value" id="session-goal-text">—</div>
+          </div>
+        </div>
+
+        <!-- Live Score -->
+        <div class="score-ring" id="score-ring" style="display: none;">
+          <svg viewBox="0 0 120 120">
+            <circle class="score-ring-bg" cx="60" cy="60" r="52"></circle>
+            <circle class="score-ring-fill" id="score-ring-fill" cx="60" cy="60" r="52"
+                    stroke-dasharray="326.73" stroke-dashoffset="326.73"></circle>
+          </svg>
+          <div class="score-ring-text">
+            <span class="score-ring-value" id="score-ring-value">—</span>
+            <span class="score-ring-label" id="score-ring-label">Focus</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Current Page Classification -->
+      <div class="section" id="classification-section">
+        <div class="label">Current Page</div>
+        <div class="classification-row" id="classification-row">
+          <span class="classification-dot" id="classification-dot"></span>
+          <span class="classification-text" id="classification-text">—</span>
+          <span class="classification-confidence" id="classification-confidence"></span>
+        </div>
+        <div class="classification-meta" id="classification-meta" style="display: none;">
+          <span class="meta-badge" id="meta-content-type"></span>
+          <span class="meta-badge" id="meta-method"></span>
+        </div>
+      </div>
+
+      <!-- ML Feedback -->
+      <div class="section feedback-section" id="feedback-section">
+        <div class="label">Teach the AI</div>
+        <div class="feedback-row">
+          <button class="feedback-btn feedback-productive" id="feedback-productive" title="This page is relevant to my goal">
+            ✓ Productive
+          </button>
+          <button class="feedback-btn feedback-distraction" id="feedback-distraction" title="This page is a distraction">
+            ✗ Distraction
+          </button>
+        </div>
+        <div class="feedback-status" id="feedback-status" style="display: none;"></div>
+      </div>
+
+      <!-- Actions -->
+      <div class="section actions">
+        <!-- Break Mode -->
+        <div class="action-group" id="break-group">
+          <button class="action-btn break-btn" id="break-btn">
+            <span>☕</span> Take a break
+          </button>
+          <div class="break-picker" id="break-picker" style="display: none;">
+            <button class="break-option" data-minutes="5">5 min</button>
+            <button class="break-option" data-minutes="10">10 min</button>
+            <button class="break-option" data-minutes="20">20 min</button>
+            <button class="break-option" data-minutes="30">30 min</button>
+          </div>
+          <div class="break-active" id="break-active" style="display: none;">
+            <span>☕ Break active — ends in <strong id="break-remaining">—</strong></span>
+            <button class="break-end-btn" id="break-end-btn">End break</button>
+          </div>
+        </div>
+
+        <!-- Site Actions -->
+        <div class="site-actions" id="site-actions">
+          <button class="action-btn allow-btn" id="allow-btn" title="Mark current site as always productive">
+            ✅ Always productive
+          </button>
+          <button class="action-btn block-btn" id="block-btn" title="Always block this site during sessions">
+            🚫 Always block
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- INSIGHTS TAB (NEW) -->
+    <div class="tab-panel" id="panel-insights">
+      <!-- Time Breakdown -->
+      <div class="section">
+        <div class="label">Time Breakdown (This Session)</div>
+        <div class="insights-time-bars" id="insights-time-bars">
+          <div class="time-bar-row">
+            <span class="time-bar-label">Productive</span>
+            <div class="time-bar-track">
+              <div class="time-bar-fill productive" id="time-bar-productive" style="width: 0%"></div>
+            </div>
+            <span class="time-bar-value" id="time-val-productive">0m</span>
+          </div>
+          <div class="time-bar-row">
+            <span class="time-bar-label">Distraction</span>
+            <div class="time-bar-track">
+              <div class="time-bar-fill distraction" id="time-bar-distraction" style="width: 0%"></div>
+            </div>
+            <span class="time-bar-value" id="time-val-distraction">0m</span>
+          </div>
+          <div class="time-bar-row">
+            <span class="time-bar-label">Neutral</span>
+            <div class="time-bar-track">
+              <div class="time-bar-fill neutral" id="time-bar-neutral" style="width: 0%"></div>
+            </div>
+            <span class="time-bar-value" id="time-val-neutral">0m</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Content Preferences -->
+      <div class="section">
+        <div class="label">Study Format Preferences</div>
+        <div class="content-pref-grid" id="content-pref-grid">
+          <div class="pref-card">
+            <span class="pref-icon">📄</span>
+            <span class="pref-name">Text</span>
+            <span class="pref-value" id="pref-text">0m</span>
+          </div>
+          <div class="pref-card">
+            <span class="pref-icon">🎬</span>
+            <span class="pref-name">Video</span>
+            <span class="pref-value" id="pref-video">0m</span>
+          </div>
+          <div class="pref-card">
+            <span class="pref-icon">🖥️</span>
+            <span class="pref-name">Interactive</span>
+            <span class="pref-value" id="pref-interactive">0m</span>
+          </div>
+          <div class="pref-card">
+            <span class="pref-icon">🎧</span>
+            <span class="pref-name">Audio</span>
+            <span class="pref-value" id="pref-audio">0m</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Top Sites This Session -->
+      <div class="section">
+        <div class="label">Top Sites (By Time Spent)</div>
+        <div id="insights-top-sites" class="top-distractions">
+          <div class="empty-list">No data yet</div>
+        </div>
+      </div>
+
+      <!-- ML Stats -->
+      <div class="section">
+        <div class="label">ML Model Status</div>
+        <div class="ml-stats" id="ml-stats">
+          <div class="ml-stat-row">
+            <span>Feedback examples</span>
+            <span id="ml-total-examples">0</span>
+          </div>
+          <div class="ml-stat-row">
+            <span>Personalization</span>
+            <span id="ml-knn-status" class="ml-status-badge">Warming up</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SUMMARY TAB -->
+    <div class="tab-panel" id="panel-summary">
+      <div class="section" id="summary-no-session">
+        <div class="empty-state">
+          <span class="empty-icon">📊</span>
+          <div class="empty-text">Session summary will appear here after a focus session ends.</div>
+        </div>
+      </div>
+
+      <div id="summary-content" style="display: none;">
+        <div class="section">
+          <div class="label">Session Duration</div>
+          <div class="stat-value" id="summary-duration">—</div>
+        </div>
+
+        <div class="section">
+          <div class="label">Time Breakdown</div>
+          <div class="breakdown-bar" id="breakdown-bar">
+            <div class="bar-segment productive" id="bar-productive" style="width: 0%"></div>
+            <div class="bar-segment distraction" id="bar-distraction" style="width: 0%"></div>
+            <div class="bar-segment neutral" id="bar-neutral" style="width: 0%"></div>
+          </div>
+          <div class="breakdown-legend">
+            <span class="legend-item"><span class="legend-dot productive"></span> Productive</span>
+            <span class="legend-item"><span class="legend-dot distraction"></span> Distraction</span>
+            <span class="legend-item"><span class="legend-dot neutral"></span> Neutral</span>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="label">Overrides</div>
+          <div class="stat-value" id="summary-overrides">0</div>
+          <div class="stat-subtitle">Times you clicked "continue anyway"</div>
+        </div>
+
+        <div class="section">
+          <div class="label">Top Distraction Sites</div>
+          <div id="top-distractions" class="top-distractions"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SETTINGS TAB -->
+    <div class="tab-panel" id="panel-settings">
+      <!-- Extension Toggle -->
+      <div class="section">
+        <div class="setting-row">
+          <span class="setting-label">Extension enabled</span>
+          <label class="toggle">
+            <input type="checkbox" id="extension-toggle" checked>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Allowlist -->
+      <div class="section">
+        <div class="label">Allowlist (always productive)</div>
+        <div class="list-container" id="allowlist-container">
+          <div class="empty-list">No custom sites added</div>
+        </div>
+      </div>
+
+      <!-- Blocklist -->
+      <div class="section">
+        <div class="label">Blocklist (always blocked)</div>
+        <div class="list-container" id="blocklist-container">
+          <div class="empty-list">No custom sites added</div>
+        </div>
+      </div>
+
+      <!-- Clear History -->
+      <div class="section">
+        <button class="action-btn danger-btn" id="clear-history-btn">
+          🗑️ Clear classification history
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

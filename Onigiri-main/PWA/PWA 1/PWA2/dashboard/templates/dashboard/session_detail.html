@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Session {{ session.session_id }} — FocusTrack</title>
+    <style>
+        :root {
+            --bg:#0f1117;--surface:#1a1d27;--surface2:#252836;--border:#2a2d3a;
+            --accent:#6366f1;--green:#22c55e;--amber:#f59e0b;--red:#ef4444;
+            --grey:#64748b;--text:#e2e8f0;--muted:#64748b;
+        }
+        *{margin:0;padding:0;box-sizing:border-box;}
+        body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;padding:0;}
+
+        /* === Status Bar === */
+        .status-bar{
+            background:var(--surface);border-bottom:1px solid var(--border);
+            padding:12px 24px;display:flex;align-items:center;gap:20px;flex-wrap:wrap;
+        }
+        .status-bar .session-id{font-size:1.2rem;font-weight:800;color:var(--accent);letter-spacing:.1em;}
+        .status-bar .topic{color:var(--muted);font-size:0.85rem;}
+        .device-pill{display:flex;align-items:center;gap:6px;
+            background:var(--surface2);padding:4px 12px;border-radius:9999px;font-size:.78rem;}
+        .dot{display:inline-block;width:8px;height:8px;border-radius:50%;}
+        .dot-green{background:var(--green);box-shadow:0 0 6px var(--green);animation:pulse 1.8s infinite;}
+        .dot-grey{background:var(--muted);}
+        @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+        .elapsed{margin-left:auto;font-size:.8rem;color:var(--muted);}
+        .back-link{color:var(--muted);font-size:.8rem;text-decoration:none;margin-right:16px;}
+        .back-link:hover{color:var(--text);}
+
+        /* === Layout === */
+        .content{padding:24px;display:grid;gap:20px;}
+
+        /* === Metric Cards === */
+        .metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;}
+        .card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;}
+        .card .value{font-size:2rem;font-weight:800;color:var(--accent);}
+        .card .label{font-size:.75rem;color:var(--muted);margin-top:4px;text-transform:uppercase;letter-spacing:.05em;}
+        #score-card .value{color:var(--green);}
+
+        /* === Panels === */
+        .panels{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+        @media(max-width:900px){.panels{grid-template-columns:1fr;}}
+        .panel{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+        .panel-header{padding:14px 18px;border-bottom:1px solid var(--border);font-size:.85rem;font-weight:600;
+            display:flex;align-items:center;justify-content:space-between;}
+        .panel-body{padding:0;max-height:340px;overflow-y:auto;}
+        .signal-row{padding:8px 18px;border-bottom:1px solid var(--border);font-size:.78rem;
+            display:grid;grid-template-columns:160px 1fr auto;gap:8px;align-items:center;}
+        .signal-row:hover{background:var(--surface2);}
+        .sig-picked, .sig-backgrounded{color:var(--amber);}
+        .sig-down, .sig-foregrounded{color:var(--green);}
+        .sig-heartbeat{color:var(--grey);}
+        .sig-default{color:var(--text);}
+        .ts{color:var(--muted);font-size:.7rem;}
+        .extra{color:var(--muted);font-size:.7rem;}
+        .relevance-high{color:var(--green);}
+        .relevance-mid{color:var(--amber);}
+        .relevance-low{color:var(--red);}
+
+        /* === Correlation Panel === */
+        .corr-row{padding:8px 18px;border-bottom:1px solid var(--border);font-size:.78rem;display:flex;gap:12px;align-items:center;}
+        .verdict-focused{color:var(--green);}
+        .verdict-distracted,.verdict-phone_use_detected{color:var(--red);}
+        .verdict-mild_distraction{color:var(--amber);}
+        .verdict-unknown,.verdict-idle_break{color:var(--grey);}
+
+        /* === Timeline === */
+        .timeline-section{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;}
+        .timeline-section h3{font-size:.85rem;font-weight:600;margin-bottom:14px;}
+        .timeline-bar{height:32px;background:var(--bg);border-radius:8px;overflow:hidden;
+            display:flex;border:1px solid var(--border);}
+        .tl-segment{height:100%;transition:width .3s;}
+        .tl-focused{background:var(--green);opacity:.7;}
+        .tl-distracted{background:var(--red);opacity:.7;}
+        .tl-unknown{background:var(--surface2);}
+        .tl-legend{display:flex;gap:16px;margin-top:10px;font-size:.72rem;color:var(--muted);}
+        .tl-legend span{display:flex;align-items:center;gap:5px;}
+        .tl-dot{width:10px;height:10px;border-radius:2px;}
+
+        /* === Refresh indicator === */
+        .refresh-badge{font-size:.65rem;color:var(--muted);background:var(--bg);padding:2px 7px;border-radius:9999px;}
+
+        .full-panels{display:grid;grid-template-columns:1fr;gap:20px;}
+    </style>
+</head>
+<body>
+
+<div class="status-bar">
+    <a href="/dashboard/" class="back-link">← All Sessions</a>
+    <span class="session-id">{{ session.session_id }}</span>
+    <span class="topic">{{ session.topic }}</span>
+    <div class="device-pill">
+        <span class="dot {% if session.desktop_connected %}dot-green{% else %}dot-grey{% endif %}"></span>
+        Desktop
+    </div>
+    <div class="device-pill">
+        <span class="dot {% if session.mobile_connected %}dot-green{% else %}dot-grey{% endif %}" id="mobile-dot"></span>
+        <span id="mobile-label">{% if session.mobile_connected %}Mobile{% else %}Waiting{% endif %}</span>
+    </div>
+    <span class="elapsed" id="elapsed">—</span>
+</div>
+
+<div class="content">
+    <!-- Metric Cards -->
+    <div class="metrics">
+        <div class="card" id="score-card">
+            <div class="value" id="metric-score">{% if session.focus_score %}{{ session.focus_score|floatformat:0 }}{% else %}—{% endif %}</div>
+            <div class="label">Focus Score</div>
+        </div>
+        <div class="card">
+            <div class="value" id="metric-mobile-count">{{ session.mobile_signals.count }}</div>
+            <div class="label">Mobile Signals</div>
+        </div>
+        <div class="card">
+            <div class="value" id="metric-desktop-count">{{ session.desktop_signals.count }}</div>
+            <div class="label">Desktop Signals</div>
+        </div>
+        <div class="card">
+            <div class="value" id="metric-distraction-count">{{ session.distraction_events.count }}</div>
+            <div class="label">Distractions</div>
+        </div>
+    </div>
+
+    <!-- Live signal panels -->
+    <div class="panels">
+        <div class="panel">
+            <div class="panel-header">
+                📱 Mobile Signals
+                <span class="refresh-badge" id="mobile-refresh">Live</span>
+            </div>
+            <div class="panel-body" id="mobile-signals-feed">
+                <p style="padding:16px;color:var(--muted);font-size:.8rem;">Loading…</p>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-header">
+                🖥️ Desktop Signals
+                <span class="refresh-badge">Live</span>
+            </div>
+            <div class="panel-body" id="desktop-signals-feed">
+                <p style="padding:16px;color:var(--muted);font-size:.8rem;">Loading…</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Correlation events -->
+    <div class="panel full-panels">
+        <div class="panel-header">🧠 Correlation Events</div>
+        <div class="panel-body" id="correlation-feed">
+            <p style="padding:16px;color:var(--muted);font-size:.8rem;">Loading…</p>
+        </div>
+    </div>
+
+    <!-- Distraction Timeline -->
+    <div class="timeline-section">
+        <h3>📊 Session Timeline</h3>
+        <div class="timeline-bar" id="timeline-bar">
+            <div class="tl-segment tl-unknown" style="width:100%"></div>
+        </div>
+        <div class="tl-legend">
+            <span><span class="tl-dot" style="background:var(--green)"></span>Focused</span>
+            <span><span class="tl-dot" style="background:var(--red)"></span>Distracted</span>
+            <span><span class="tl-dot" style="background:var(--surface2)"></span>Unknown</span>
+        </div>
+    </div>
+</div>
+
+<script>
+const SESSION_ID = "{{ session.session_id }}";
+const STARTED_AT = new Date("{{ session.started_at|date:'c' }}");
+const API_URL = '/api/sessions/' + SESSION_ID + '/live-state/';
+const SNAPSHOTS_URL = '/api/sessions/' + SESSION_ID + '/status/';
+
+// Elapsed timer
+function updateElapsed() {
+    const diff = Math.floor((Date.now() - STARTED_AT.getTime()) / 1000);
+    const h = Math.floor(diff / 3600);
+    const m = Math.floor((diff % 3600) / 60);
+    const s = diff % 60;
+    document.getElementById('elapsed').textContent =
+        (h > 0 ? h + 'h ' : '') + m + 'm ' + s + 's elapsed';
+}
+setInterval(updateElapsed, 1000);
+updateElapsed();
+
+// Signal type → CSS class
+function sigClass(t) {
+    if (['phone_picked_up','pwa_backgrounded'].includes(t)) return 'sig-picked';
+    if (['pwa_foregrounded','phone_put_down'].includes(t)) return 'sig-down';
+    if (t === 'heartbeat') return 'sig-heartbeat';
+    return 'sig-default';
+}
+
+function formatTs(iso) {
+    try { return new Date(iso).toLocaleTimeString(); } catch { return iso; }
+}
+
+function relevanceClass(score) {
+    if (score >= 0.6) return 'relevance-high';
+    if (score >= 0.3) return 'relevance-mid';
+    return 'relevance-low';
+}
+
+function verdictClass(v) {
+    if (['distracted','phone_use_detected'].includes(v)) return 'verdict-distracted';
+    if (v === 'focused') return 'verdict-focused';
+    if (v === 'mild_distraction') return 'verdict-mild_distraction';
+    return 'verdict-unknown';
+}
+
+async function refresh() {
+    try {
+        const res = await fetch(API_URL);
+        if (!res.ok) return;
+        const d = await res.json();
+
+        // Update metrics
+        if (d.focus_score !== null && d.focus_score !== undefined) {
+            document.getElementById('metric-score').textContent = Math.round(d.focus_score);
+        }
+        document.getElementById('metric-mobile-count').textContent = d.mobile_signal_count || 0;
+        document.getElementById('metric-desktop-count').textContent = d.desktop_signal_count || 0;
+        document.getElementById('metric-distraction-count').textContent = d.distraction_count || 0;
+
+        // Mobile connected indicator
+        const dot = document.getElementById('mobile-dot');
+        const lbl = document.getElementById('mobile-label');
+        if (d.mobile_connected) {
+            dot.className = 'dot dot-green'; lbl.textContent = 'Mobile';
+        } else {
+            dot.className = 'dot dot-grey'; lbl.textContent = 'Waiting';
+        }
+
+        // Mobile signals feed
+        let mHtml = '';
+        if (d.mobile_signals && d.mobile_signals.length) {
+            d.mobile_signals.forEach(sig => {
+                const extra = sig.magnitude ? `mag ${sig.magnitude.toFixed(1)}` :
+                              sig.duration_ms ? `${sig.duration_ms}ms away` : '';
+                mHtml += `<div class="signal-row">
+                    <span class="${sigClass(sig.signal_type)}">${sig.signal_type}</span>
+                    <span class="ts">${formatTs(sig.timestamp)}</span>
+                    <span class="extra">${extra}</span>
+                </div>`;
+            });
+        } else {
+            mHtml = '<p style="padding:16px;color:var(--muted);font-size:.8rem;">No signals yet.</p>';
+        }
+        document.getElementById('mobile-signals-feed').innerHTML = mHtml;
+
+        // Desktop signals feed
+        let dHtml = '';
+        if (d.desktop_signals && d.desktop_signals.length) {
+            d.desktop_signals.forEach(sig => {
+                const relevance = sig.topic_relevance_score !== undefined ? sig.topic_relevance_score : 0.5;
+                dHtml += `<div class="signal-row">
+                    <span>${sig.signal_type}</span>
+                    <span class="ts" title="${sig.url}">${sig.page_title || sig.url || '—'}</span>
+                    <span class="${relevanceClass(relevance)}">${(relevance * 100).toFixed(0)}%</span>
+                </div>`;
+            });
+        } else {
+            dHtml = '<p style="padding:16px;color:var(--muted);font-size:.8rem;">No signals yet.</p>';
+        }
+        document.getElementById('desktop-signals-feed').innerHTML = dHtml;
+
+        // Correlation panel — use score snapshots
+        const verdictMap = { focused:'Focused', mild_distraction:'Mild Distraction',
+            distracted:'Distracted', phone_use_detected:'Phone Use', idle_break:'Idle', unknown:'Unknown' };
+        // Re-fetch status for snapshots (live-state doesn't expose them)
+        const sRes = await fetch(SNAPSHOTS_URL);
+        if (sRes.ok) {
+            const sData = await sRes.json();
+            const vc = verdictClass(d.verdict || 'unknown');
+            document.getElementById('correlation-feed').innerHTML =
+                `<div class="corr-row"><span class="ts">${formatTs(new Date().toISOString())}</span>
+                 <span class="${vc}">${verdictMap[d.verdict] || d.verdict || 'No data'}</span>
+                 <span class="extra">Score: ${d.focus_score !== null ? Math.round(d.focus_score) : '—'}</span>
+                 </div>`;
+        }
+
+        // Timeline
+        const distracted = d.distraction_count || 0;
+        const total = (d.mobile_signal_count || 0) + (d.desktop_signal_count || 0) + 1;
+        const pctDistracted = Math.min(90, distracted * 8);
+        const pctFocused = Math.max(10, 100 - pctDistracted);
+        document.getElementById('timeline-bar').innerHTML =
+            `<div class="tl-segment tl-focused" style="width:${pctFocused}%"></div>
+             <div class="tl-segment tl-distracted" style="width:${pctDistracted}%"></div>`;
+
+        document.getElementById('mobile-refresh').textContent = new Date().toLocaleTimeString();
+
+    } catch(e) { console.warn('Refresh error', e); }
+}
+
+// Poll every 3 seconds
+refresh();
+setInterval(refresh, 3000);
+</script>
+</body>
+</html>

@@ -1,0 +1,51 @@
+<!-- MindForge Overlay Template (not directly loaded; structure reference only) -->
+<!-- Actual injection happens via overlay.js Shadow DOM -->
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="overlay.css">
+</head>
+<body>
+  <!-- Full Overlay -->
+  <div class="mf-overlay" id="mf-full-overlay">
+    <div class="mf-card">
+      <div class="mf-emoji">⚡</div>
+      <div class="mf-title">You were in the zone!</div>
+      <div class="mf-subtitle">This site might pull you away from your focus.</div>
+      <div class="mf-goal">
+        <div class="mf-goal-label">Your current goal</div>
+        <span id="mf-goal-text">Focus Session</span>
+      </div>
+      <div class="mf-stats">
+        <div class="mf-stat">
+          <div class="mf-stat-value" id="mf-score">—</div>
+          <div class="mf-stat-label">Focus Score</div>
+        </div>
+        <div class="mf-stat">
+          <div class="mf-stat-value" id="mf-site">—</div>
+          <div class="mf-stat-label">Current Site</div>
+        </div>
+      </div>
+      <div class="mf-buttons">
+        <button class="mf-btn mf-btn-primary" id="mf-go-back">Back to work</button>
+        <button class="mf-btn mf-btn-secondary" id="mf-continue">Continue anyway</button>
+      </div>
+      <div class="mf-countdown" id="mf-countdown-text">Auto-closing in 45s</div>
+      <div class="mf-countdown-bar">
+        <div class="mf-countdown-fill" id="mf-countdown-fill" style="width: 100%"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Nudge Banner -->
+  <div class="mf-nudge" id="mf-nudge-banner" style="display: none;">
+    <span class="mf-nudge-icon">🤔</span>
+    <span class="mf-nudge-text">This might not be related to: <strong id="mf-nudge-goal">your goal</strong></span>
+    <div class="mf-nudge-actions">
+      <button class="mf-nudge-btn mf-nudge-btn-back" id="mf-nudge-back">You're right, go back</button>
+      <button class="mf-nudge-btn mf-nudge-btn-dismiss" id="mf-nudge-dismiss">This is relevant</button>
+    </div>
+  </div>
+</body>
+</html>

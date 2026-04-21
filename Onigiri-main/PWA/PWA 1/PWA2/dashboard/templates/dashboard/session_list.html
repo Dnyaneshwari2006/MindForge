@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FocusTrack — Active Sessions</title>
+    <style>
+        :root {
+            --bg: #0f1117; --surface: #1a1d27; --border: #2a2d3a;
+            --accent: #6366f1; --green: #22c55e; --amber: #f59e0b;
+            --red: #ef4444; --text: #e2e8f0; --muted: #64748b;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; padding: 24px; }
+        h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 8px; color: var(--accent); }
+        .subtitle { color: var(--muted); margin-bottom: 32px; font-size: 0.85rem; }
+        h2 { font-size: 1rem; font-weight: 600; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+        section { margin-bottom: 40px; }
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; font-size: 0.75rem; color: var(--muted); padding: 8px 12px; border-bottom: 1px solid var(--border); text-transform: uppercase; letter-spacing: 0.05em; }
+        td { padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 0.875rem; }
+        tr:hover td { background: var(--surface); }
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+        .dot-green { background: var(--green); box-shadow: 0 0 6px var(--green); animation: pulse 2s infinite; }
+        .dot-grey { background: var(--muted); }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 9999px; font-size: 0.7rem; font-weight: 600; }
+        .badge-active { background: rgba(99,102,241,.2); color: var(--accent); }
+        .badge-done { background: rgba(100,116,139,.15); color: var(--muted); }
+        .score { font-weight: 700; }
+        .empty { color: var(--muted); font-style: italic; padding: 16px 0; }
+    </style>
+</head>
+<body>
+    <h1>🎯 FocusTrack Admin</h1>
+    <p class="subtitle">Live session monitoring dashboard</p>
+
+    <section>
+        <h2>🟢 Active Sessions ({{ active_sessions.count }})</h2>
+        {% if active_sessions %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Session ID</th>
+                    <th>Topic</th>
+                    <th>Started</th>
+                    <th>Desktop</th>
+                    <th>Mobile</th>
+                    <th>Score</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for s in active_sessions %}
+            <tr>
+                <td><a href="/dashboard/session/{{ s.session_id }}/">{{ s.session_id }}</a></td>
+                <td>{{ s.topic }}</td>
+                <td>{{ s.started_at|date:"H:i:s" }}</td>
+                <td>
+                    {% if s.desktop_connected %}
+                      <span class="dot dot-green"></span>Connected
+                    {% else %}
+                      <span class="dot dot-grey"></span>Waiting
+                    {% endif %}
+                </td>
+                <td>
+                    {% if s.mobile_connected %}
+                      <span class="dot dot-green"></span>Connected
+                    {% else %}
+                      <span class="dot dot-grey"></span>Waiting
+                    {% endif %}
+                </td>
+                <td class="score">{% if s.focus_score %}{{ s.focus_score|floatformat:0 }}{% else %}—{% endif %}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="empty">No active sessions.</p>
+        {% endif %}
+    </section>
+
+    <section>
+        <h2>📋 Recent Completed Sessions</h2>
+        {% if recent_sessions %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Session ID</th>
+                    <th>Topic</th>
+                    <th>Started</th>
+                    <th>Ended</th>
+                    <th>Score</th>
+                    <th>Focused</th>
+                    <th>Distracted</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for s in recent_sessions %}
+            <tr>
+                <td><a href="/dashboard/session/{{ s.session_id }}/">{{ s.session_id }}</a></td>
+                <td>{{ s.topic }}</td>
+                <td>{{ s.started_at|date:"M d H:i" }}</td>
+                <td>{{ s.ended_at|date:"H:i" }}</td>
+                <td class="score">{% if s.focus_score %}{{ s.focus_score|floatformat:0 }}{% else %}—{% endif %}</td>
+                <td>{{ s.focused_minutes|floatformat:1 }}m</td>
+                <td>{{ s.distracted_minutes|floatformat:1 }}m</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="empty">No completed sessions yet.</p>
+        {% endif %}
+    </section>
+</body>
+</html>
