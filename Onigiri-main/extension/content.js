@@ -5,6 +5,10 @@
 // 3. Focus indicator dot
 // 4. Message handling from background.js
 
+// Guard: prevent double-injection (extension reload / SPA re-inject)
+if (window.__MINDFORGE_CONTENT_LOADED__) { /* already loaded — skip */ } else {
+window.__MINDFORGE_CONTENT_LOADED__ = true;
+
 // Note: Readability.js, extractor.js, and this file are loaded as content scripts
 // via manifest.json. overlay.js functions are loaded inline below since content
 // scripts share the same execution context.
@@ -532,3 +536,4 @@ if (window.location.hostname.includes('youtube.com')) {
   window.addEventListener('popstate', () => onSPANavigate());
 })();
 
+} // end guard: __MINDFORGE_CONTENT_LOADED__
