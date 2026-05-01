@@ -6,6 +6,42 @@ import FocusOverlay from './FocusOverlay';
 import BlocklistManager from './BlocklistManager';
 import { getBlocklist } from './BlocklistManager';
 
+/* ─── Browser-side LAN IP detection (fallback when Express isn't available) ── */
+async function detectLanIp() {
+  // Method 1: Try the Express backend endpoint
+  try {
+    const info = await systemApi.networkInfo();
+    if (info?.preferred && info.preferred !== 'localhost') return info.preferred;
+  } catch (_) {}
+
+  // Method 2: WebRTC-based local IP detection
+  try {
+    const pc = new RTCPeerConnection({ iceServers: [] });
+    pc.createDataChannel('');
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    return await new Promise((resolve) => {
+      const timeout = setTimeout(() => { pc.close(); resolve(null); }, 3000);
+      pc.onicecandidate = (e) => {
+        if (!e.candidate) return;
+        const parts = e.candidate.candidate.split(' ');
+        const ip = parts[4];
+        if (ip && !ip.includes(':') && ip !== '0.0.0.0' && !ip.startsWith('127.')) {
+          clearTimeout(timeout);
+          pc.close();
+          resolve(ip);
+        }
+      };
+    });
+  } catch (_) {}
+
+  // Method 3: Use the hostname the browser is connected to (if not localhost)
+  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+    return window.location.hostname;
+  }
+
+  return null;
+}
 /* ─── CSS animations ─────────────────────────────────── */
 const SPINNER_CSS = `
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
@@ -762,9 +798,7 @@ export default function Session() {
 
   // On mount: fetch network IP + check for existing active session
   useEffect(() => {
-    systemApi.networkInfo()
-      .then(info => setPcIp(info.preferred))
-      .catch(() => {});
+    detectLanIp().then(ip => { if (ip) setPcIp(ip); });
 
     tagsApi.getAll()
       .then(data => setTags(data || []))
@@ -788,16 +822,11 @@ export default function Session() {
     if (!goal.trim()) return;
     setBooting(true);
     try {
-      // ── Step 1: resolve real LAN IP (may already be set, fetch fresh just in case) ──
+      // ── Step 1: resolve real LAN IP ──
       let ip = pcIp;
       if (!ip) {
-        try {
-          const info = await systemApi.networkInfo();
-          ip = info.preferred;
-          setPcIp(ip);
-        } catch (_) {
-          ip = window.location.hostname !== 'localhost' ? window.location.hostname : null;
-        }
+        ip = await detectLanIp();
+        if (ip) setPcIp(ip);
       }
 
       // ── Step 2: create Django session (gets 6-char ID the phone WS can validate) ──

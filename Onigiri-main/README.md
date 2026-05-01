@@ -136,3 +136,77 @@ If you want to track browser tabs efficiently:
 4. **Scoring Engine**: Every 10 seconds, `core/scorer.js` reads the last 60 seconds of memory, classifies application types (Productive vs. Distraction), and broadcasts a computed score to the UI over WebSockets (`ws://localhost:39871`).
 5. **Dual-Stream Data Pipeline**: While the desktop watcher logs OS-level app usage (e.g., "Chrome is active"), the **Chrome Extension** acts as a secondary data stream. It monitors active tabs, classifies URLs, and POSTs per-site analytics (time spent on specific hostnames, content types like video/text) into the session memory.
 6. **Session End**: Upon ending the session, Node computes the session's overall metrics. The OS OS-level breakdown, Focus Score, Deep Work minutes, AND the Extension's granular per-site analytics are all flushed to Supabase simultaneously, populating the `sessions` and `session_sites` tables for detailed historical analytics.
+
+---
+
+## Frontend-Only Deployment (Static Hosting)
+
+MindForge can be deployed as a **frontend-only web app** without the Electron desktop backend, ML models, or local server. In this mode, the UI is fully functional with realistic demo data.
+
+### How It Works
+
+When deployed to a non-localhost domain (Vercel, Netlify, etc.), the app automatically detects it's running in **cloud mode** and:
+
+- Returns **mock data** for all API calls (sessions, analytics, habits, scores)
+- Simulates **WebSocket score updates** every 10 seconds
+- Auto-logs in with a **demo user** (if Supabase credentials are not configured)
+- All UI features remain fully interactive — Pomodoro timer, habit tracking, Eisenhower Matrix, etc.
+
+### Deploy to Vercel (Recommended)
+
+```bash
+# 1. Navigate to the renderer directory
+cd renderer
+
+# 2. Install dependencies
+npm install
+
+# 3. Build the static site
+npm run build
+
+# 4. Deploy with Vercel CLI
+npx vercel --prod
+```
+
+Or connect the repo to [vercel.com](https://vercel.com) and set:
+- **Root Directory**: `renderer`
+- **Build Command**: `npm run build`
+- **Output Directory**: `dist`
+
+### Deploy to Netlify
+
+```bash
+cd renderer
+npm install && npm run build
+```
+
+Create a `netlify.toml` in the `renderer/` folder:
+```toml
+[build]
+  publish = "dist"
+  command = "npm run build"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+```
+
+### Deploy to Any Static Host
+
+```bash
+cd renderer
+npm install && npm run build
+# Upload the contents of renderer/dist/ to your static host
+```
+
+### Optional: Enable Real Auth
+
+To enable real Supabase authentication (sign up / sign in), set these environment variables in your hosting platform:
+
+```env
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+```
+
+Without these, the app runs in demo mode with a pre-authenticated guest user.

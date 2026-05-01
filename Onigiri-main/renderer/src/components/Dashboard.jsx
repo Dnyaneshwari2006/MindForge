@@ -73,10 +73,10 @@ export default function Dashboard() {
 
       {/* ── DEMO MODE BANNER (cloud only) ── */}
       {IS_CLOUD && (
-        <div style={{ background: 'rgba(245,158,11,0.12)', borderBottom: '1px solid rgba(245,158,11,0.25)', padding: '10px 48px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <span style={{ fontSize: '16px' }}>🖥️</span>
-          <span style={{ fontSize: '13px', color: '#f59e0b' }}>
-            <strong>Demo Mode —</strong> Live focus tracking, real-time score & session features require the desktop app running locally. Auth & Analytics are fully functional.
+        <div style={{ background: 'rgba(99,102,241,0.1)', borderBottom: '1px solid rgba(99,102,241,0.2)', padding: '10px 48px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <span style={{ fontSize: '16px' }}>✨</span>
+          <span style={{ fontSize: '13px', color: '#a78bfa' }}>
+            <strong>Live Demo —</strong> You're viewing MindForge with sample data. All UI features are fully functional. For real-time focus tracking, download the desktop app.
           </span>
         </div>
       )}

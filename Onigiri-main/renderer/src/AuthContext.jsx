@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import supabase from './supabaseClient';
+import supabase, { IS_DEMO } from './supabaseClient';
 
 const AuthContext = createContext(null);
 
@@ -20,11 +20,17 @@ async function syncSessionToBackend(session) {
   }
 }
 
+// ── Demo user returned when Supabase is not configured ──
+const DEMO_USER = { id: 'demo-user', email: 'demo@mindforge.app' };
+
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState(IS_DEMO ? DEMO_USER : null);
+  const [loading, setLoading] = useState(!IS_DEMO);
 
   useEffect(() => {
+    // In demo mode, skip all Supabase auth logic
+    if (IS_DEMO || !supabase) return;
+
     // Check if user is already logged in
     supabase.auth.getUser().then(({ data }) => {
       setUser(data?.user ? { id: data.user.id, email: data.user.email } : null);
@@ -55,6 +61,10 @@ export function AuthProvider({ children }) {
   }, []);
 
   const signUp = async (email, password) => {
+    if (IS_DEMO || !supabase) {
+      setUser(DEMO_USER);
+      return { user: DEMO_USER, error: null };
+    }
     const { data, error } = await supabase.auth.signUp({ email, password });
     if (error) return { user: null, error: { message: error.message } };
     const u = data.user;
@@ -64,6 +74,10 @@ export function AuthProvider({ children }) {
   };
 
   const signIn = async (email, password) => {
+    if (IS_DEMO || !supabase) {
+      setUser(DEMO_USER);
+      return { user: DEMO_USER, error: null };
+    }
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) return { user: null, error: { message: error.message } };
     const u = data.user;
@@ -73,6 +87,10 @@ export function AuthProvider({ children }) {
   };
 
   const signOut = async () => {
+    if (IS_DEMO || !supabase) {
+      // In demo mode, just toggle back to demo user (don't actually sign out)
+      return { error: null };
+    }
     const { error } = await supabase.auth.signOut();
     if (!error) setUser(null);
     return { error: error ? { message: error.message } : null };
@@ -90,4 +108,3 @@ export function useAuth() {
   if (!context) throw new Error('useAuth must be used within AuthProvider');
   return context;
 }
-
