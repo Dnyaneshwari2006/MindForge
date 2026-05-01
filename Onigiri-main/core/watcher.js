@@ -31,18 +31,7 @@ const CATEGORIES = {
   'powerpoint': 'productive',
   'antigravity': 'productive',
 
-  // Browser (detailed by Chrome extension)
-  'chrome': 'browser',
-  'google chrome': 'browser',
-  'firefox': 'browser',
-  'safari': 'browser',
-  'edge': 'browser',
-  'msedge': 'browser',
-  'microsoft edge': 'browser',
-  'brave': 'browser',
-  'opera': 'browser',
-
-  // Distractions
+  // Distractions (Prioritize these over generic browsers)
   'youtube': 'distraction',
   'steam': 'distraction',
   'discord': 'distraction',
@@ -59,6 +48,17 @@ const CATEGORIES = {
   'league of legends': 'distraction',
   'epic games': 'distraction',
   'overwatch': 'distraction',
+
+  // Browser (Fallback if no specific distraction is found in title)
+  'chrome': 'browser',
+  'google chrome': 'browser',
+  'firefox': 'browser',
+  'safari': 'browser',
+  'edge': 'browser',
+  'msedge': 'browser',
+  'microsoft edge': 'browser',
+  'brave': 'browser',
+  'opera': 'browser',
 };
 
 let lastApp = null;
