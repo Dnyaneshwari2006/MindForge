@@ -34,6 +34,9 @@ function getDomainTier(hostname, userAllowlist = [], userBlocklist = []) {
   if (!hostname) return 'ambiguous';
   const h = hostname.toLowerCase().replace(/^www\./, '');
 
+  // Never block MindForge's own UI (localhost / 127.0.0.1 / LAN IPs)
+  if (h === 'localhost' || h === '127.0.0.1' || h.startsWith('192.168.') || h.startsWith('10.')) return 'productive';
+
   if (userBlocklist.some(d => h === d || h.endsWith('.' + d))) return 'distraction';
   if (userAllowlist.some(d => h === d || h.endsWith('.' + d))) return 'productive';
   if (TIER1_DISTRACTIONS.some(d => h === d || h.endsWith('.' + d))) return 'distraction';
