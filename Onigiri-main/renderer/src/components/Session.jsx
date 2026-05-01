@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { sessionApi, useWebSocket, aiApi, systemApi, djangoApi, tagsApi, matrixApi } from '../api';
+import { sessionApi, useWebSocket, aiApi, systemApi, djangoApi, tagsApi, matrixApi, IS_DEMO_MODE } from '../api';
 import useVisibilityTracker from '../hooks/useVisibilityTracker';
 import FocusPiP from './FocusPiP';
 import FocusOverlay from './FocusOverlay';
@@ -753,12 +753,11 @@ function ActivePage({ sessionId, djangoSessionId, pwaUrl, goal, mode, pcIp, onEn
             Install PWA
           </button>
         </div>
-
       </div>
 
       {/* PiP Floating Timer */}
       <FocusPiP
-        active={true}
+        active={state === 'active'}
         goal={goal}
         mode={mode}
         elapsed={elapsed}
@@ -766,6 +765,41 @@ function ActivePage({ sessionId, djangoSessionId, pwaUrl, goal, mode, pcIp, onEn
         productivePercent={pActive}
         onEnd={handleEnd}
       />
+
+      {/* Web Demo Disclaimer Modal */}
+      {showDemoDisclaimer && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+          <div style={{ background: '#09090b', border: '1px solid #27272a', borderRadius: '16px', padding: '32px', maxWidth: '440px', width: '100%', boxShadow: '0 20px 40px rgba(0,0,0,0.5)', position: 'relative' }}>
+            <button 
+              onClick={() => setShowDemoDisclaimer(false)}
+              style={{ position: 'absolute', top: '16px', right: '16px', background: 'transparent', border: 'none', color: '#a1a1aa', cursor: 'pointer', padding: '4px' }}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+            
+            <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'rgba(139,92,246,0.1)', color: '#a78bfa', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '20px' }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+            </div>
+            
+            <h2 style={{ margin: '0 0 12px 0', fontSize: '20px', fontWeight: 600, color: '#f8fafc' }}>Web Demo Limitations</h2>
+            <p style={{ margin: '0 0 16px 0', fontSize: '14px', lineHeight: '1.6', color: '#94a3b8' }}>
+              You are currently viewing the MindForge <strong>Live Web Demo</strong>. Because browser security prevents websites from tracking your local computer usage, the core tracking features cannot be demonstrated here.
+            </p>
+            <p style={{ margin: '0 0 24px 0', fontSize: '14px', lineHeight: '1.6', color: '#94a3b8' }}>
+              To experience real-time desktop app tracking, AI Chrome tab blocking, and mobile phone syncing, please view our demo video or download the full local application!
+            </p>
+            
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button 
+                onClick={() => setShowDemoDisclaimer(false)}
+                style={{ flex: 1, padding: '10px 0', background: '#8b5cf6', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: 500, cursor: 'pointer' }}
+              >
+                Understood
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -789,6 +823,7 @@ export default function Session() {
   const [selectedTaskId, setSelectedTaskId] = useState('');
   const [blocklist, setBlocklist] = useState([]);
   const [focusScore, setFocusScore] = useState(null);
+  const [showDemoDisclaimer, setShowDemoDisclaimer] = useState(false);
 
   // Visibility tracking (only active during session)
   const { send: wsSend } = useWebSocket(useCallback((msg) => {
@@ -820,6 +855,12 @@ export default function Session() {
 
   async function handleBoot() {
     if (!goal.trim()) return;
+
+    if (IS_DEMO_MODE) {
+      setShowDemoDisclaimer(true);
+      return;
+    }
+
     setBooting(true);
     try {
       // ── Step 1: resolve real LAN IP ──
