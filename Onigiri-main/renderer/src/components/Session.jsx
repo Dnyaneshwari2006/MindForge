@@ -757,7 +757,7 @@ function ActivePage({ sessionId, djangoSessionId, pwaUrl, goal, mode, pcIp, onEn
 
       {/* PiP Floating Timer */}
       <FocusPiP
-        active={state === 'active'}
+        active={true}
         goal={goal}
         mode={mode}
         elapsed={elapsed}
